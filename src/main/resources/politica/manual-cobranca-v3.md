@@ -143,7 +143,7 @@ acordos de até 12 parcelas não há exigência de entrada.
 
 ## 6. Clientes em situação de vulnerabilidade
 
-A Lei 14.181/2020 e a regulamentação correlata exigem tratamento diferenciado para
+A Lei 14.181/2021 e a regulamentação correlata exigem tratamento diferenciado para
 consumidores em situação de superendividamento. O operador deve acionar o fluxo de
 vulnerabilidade sempre que identificar indícios concretos.
 

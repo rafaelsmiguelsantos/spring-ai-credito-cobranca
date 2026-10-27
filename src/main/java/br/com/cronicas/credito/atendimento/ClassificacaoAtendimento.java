@@ -30,6 +30,6 @@ public record ClassificacaoAtendimento(
         PromessaPagamento promessa,
 
         @JsonPropertyDescription("True se houver indicio de superendividamento ou vulnerabilidade "
-                + "que exija tratamento diferenciado por forca da Lei 14.181/2020")
+                + "que exija tratamento diferenciado por forca da Lei 14.181/2021")
         boolean indicioDeVulnerabilidade) {
 }
