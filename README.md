@@ -136,6 +136,27 @@ Fora dos perfis de provider, o que se costuma ajustar:
 | `credito.politica.similarity-threshold` | 0.45 | Similaridade mínima do chunk |
 | `credito.politica.manual` | `classpath:politica/manual-cobranca-v3.md` | Onde está o manual |
 | `spring.ai.tools.limits.max-total-tool-calls` | 10 | Teto do loop de ferramentas |
+| `spring.ai.retry.max-attempts` | 3 | Tentativas por chamada ao modelo |
+| `spring.http.clients.read-timeout` | 60s | Fronteira entre lento e pendurado |
+
+Duas dessas merecem explicação, porque as duas foram descobertas rodando a
+aplicação, não lendo o código.
+
+**O retry.** O padrão do Spring AI é `max-attempts: 10`, `initial-interval: 2s`,
+`multiplier: 5` e nenhum `max-interval` — ou seja 2s, 10s, 50s, 250s, 1250s. Uma
+conexão recusada conta como retentável, então com o Ollama desligado a requisição
+não falhava: ficava pendurada por horas, segurando uma thread de servlet. Esse
+default é de quem prefere esperar a falhar, o que faz sentido num job batch e
+nenhum sentido num atendimento com cliente na linha. Com o teto em 3 tentativas, a
+mesma requisição responde 503 em cerca de 4 segundos.
+
+**As seis chaves de `spring.ai.model`.** Com os dois starters no classpath, não
+basta apontar `chat` e `embedding` para o Ollama: `spring.ai.model.<tipo>` é por
+tipo de modelo e cada tipo vem habilitado por padrão, então o Spring AI também
+montava os modelos de *speech*, *transcription*, *image* e *moderation* da
+OpenAI — e cada um exige credencial. O resultado era que o perfil `ollama`, cujo
+propósito é não custar nada, se recusava a subir sem uma `OPENAI_API_KEY`. Dois
+providers no classpath significa ser explícito sobre todos os seis.
 
 As duas observações de prompt (`spring.ai.chat.client.observations.log-prompt` e
 `log-completion`) ficam explicitamente em `false`. Neste domínio o prompt carrega

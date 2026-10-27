@@ -43,6 +43,24 @@ spring:
           log-prompt: false
           log-completion: false
 
+    # Spring AI's retry defaults are max-attempts 10, initial-interval 2s,
+    # multiplier 5 and no max-interval: 2s, 10s, 50s, 250s, 1250s and on. A
+    # refused connection counts as retryable, so with the model server down an
+    # HTTP request does not fail -- it hangs for hours, holding a servlet thread,
+    # while the operator watches a spinner with a customer on the line. Measured,
+    # not guessed: a classification request sat for over two minutes before this
+    # was capped.
+    #
+    # Those defaults are tuned for a batch job that would rather wait than fail.
+    # This is a synchronous request with a human attached, so the retry budget has
+    # to be smaller than the human's patience.
+    retry:
+      max-attempts: 3
+      backoff:
+        initial-interval: 500ms
+        multiplier: 2
+        max-interval: 2s
+
     tools:
       limits:
         # The agent loop is bounded. Without a ceiling, a model that keeps asking
@@ -57,6 +75,17 @@ spring:
         initialize-schema: true
         index-type: HNSW
         distance-type: COSINE_DISTANCE
+
+  # Retry caps how many times a failure is repeated; these cap how long any one
+  # attempt may take. Without them a model server that accepts the connection and
+  # then stops responding holds the thread indefinitely, which the retry budget
+  # alone does not prevent. The read timeout is deliberately generous: a local 7B
+  # model producing structured output legitimately takes tens of seconds, so this
+  # is the boundary between slow and hung, not a latency target.
+  http:
+    clients:
+      connect-timeout: 2s
+      read-timeout: 60s
 
   datasource:
     url: jdbc:postgresql://localhost:5432/credito
