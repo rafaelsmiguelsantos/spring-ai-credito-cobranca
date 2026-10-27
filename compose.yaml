@@ -1,0 +1,20 @@
+services:
+  pgvector:
+    image: pgvector/pgvector:pg17
+    container_name: credito-pgvector
+    environment:
+      POSTGRES_DB: credito
+      POSTGRES_USER: credito
+      POSTGRES_PASSWORD: credito
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgvector-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U credito -d credito"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgvector-data:

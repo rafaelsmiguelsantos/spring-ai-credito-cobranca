@@ -1,0 +1,135 @@
+spring:
+  application:
+    name: credito-ai
+
+  # Running with no profile used to pick the Ollama provider without any of the
+  # Ollama settings below it -- default model, default vector dimensions -- so the
+  # first `mvn spring-boot:run` failed on a dimension mismatch in pgvector. A
+  # default profile is cheaper than that paragraph in the README.
+  profiles:
+    default: ollama
+
+  ai:
+    # Both provider starters are on the classpath. These keys decide which one is
+    # wired. Swapping provider is a profile change, not a code change -- that is
+    # the entire portability claim, and it is worth verifying rather than believing.
+    #
+    # The two keys this project actually uses are chat and embedding. The other
+    # four are here because `spring.ai.model.<type>` is per model type and every
+    # type defaults to "enabled": with the OpenAI starter on the classpath and
+    # these left unset, Spring AI builds the OpenAI speech, transcription, image
+    # and moderation models too, and each demands an API key. The result was that
+    # the Ollama profile -- the one whose whole point is that it costs nothing --
+    # refused to start without an OPENAI_API_KEY. Two providers on the classpath
+    # means being explicit about all six, not just the two in use.
+    model:
+      chat: ollama
+      embedding: ollama
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+
+    chat:
+      client:
+        observations:
+          # Both default to false, and they are pinned here because this is a
+          # collections system: the prompt holds a transcript and the completion
+          # holds an assessment of a named person's finances. Turning either on
+          # ships that to whatever the observation backend is, under a flag that
+          # reads like a debug toggle. The audit advisor records sizes, timings
+          # and token counts instead, which is what an auditor asks for.
+          log-prompt: false
+          log-completion: false
+
+    tools:
+      limits:
+        # The agent loop is bounded. Without a ceiling, a model that keeps asking
+        # for one more simulation is an unbounded bill attached to a single HTTP
+        # request, and the failure mode is a slow endpoint rather than an error.
+        max-total-tool-calls: 10
+        max-calls-per-tool-default: 5
+        on-limit-exceeded: throw
+
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/credito
+    username: ${POSTGRES_USER:credito}
+    password: ${POSTGRES_PASSWORD:credito}
+
+credito:
+  politica:
+    manual: classpath:politica/manual-cobranca-v3.md
+    top-k: 4
+    similarity-threshold: 0.45
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics
+  metrics:
+    tags:
+      application: credito-ai
+
+logging:
+  level:
+    br.com.cronicas.credito: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: ollama
+  ai:
+    model:
+      chat: ollama
+      embedding: ollama
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      init:
+        pull-model-strategy: when_missing
+        timeout: 10m
+      chat:
+        options:
+          model: qwen2.5:7b
+      embedding:
+        options:
+          model: nomic-embed-text
+    vectorstore:
+      pgvector:
+        dimensions: 768   # nomic-embed-text
+        # One table per embedding model. The pgvector column is created with a
+        # fixed dimension, so a single shared table makes switching profiles a
+        # `docker compose down -v`. Naming the table after the model instead lets
+        # both profiles live in the same database, which is what you want when
+        # the point of the exercise is to compare them.
+        table-name: vector_store_ollama_768
+
+---
+spring:
+  config:
+    activate:
+      on-profile: openai
+  ai:
+    model:
+      chat: openai
+      embedding: openai
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4.1-mini
+      embedding:
+        options:
+          model: text-embedding-3-small
+    vectorstore:
+      pgvector:
+        dimensions: 1536  # text-embedding-3-small
+        table-name: vector_store_openai_1536

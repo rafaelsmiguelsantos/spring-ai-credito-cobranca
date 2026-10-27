@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.2</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>br.com.cronicas</groupId>
+    <artifactId>credito-ai</artifactId>
+    <version>0.1.0</version>
+    <name>credito-ai</name>
+    <description>Spring AI aplicado a credito e cobranca</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <spring-ai.version>2.0.2</spring-ai.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Two model providers on the classpath at the same time.
+             spring.ai.model.chat / spring.ai.model.embedding pick the active one.
+             This is the portability demo: same code, different provider. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-ollama</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
+
+        <!-- Declared explicitly because ApiExceptionHandler imports
+             TransientAiException and NonTransientAiException directly. It arrives
+             transitively through spring-ai-ollama today, which means removing the
+             Ollama starter would break a class that has nothing to do with Ollama.
+             A compile-time import deserves a declared dependency. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-retry</artifactId>
+        </dependency>
+
+        <!-- Vector store -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
+        </dependency>
+
+        <!-- Modular RAG: RetrievalAugmentationAdvisor and friends -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-rag</artifactId>
+        </dependency>
+
+        <!-- No spring-ai-markdown-document-reader here, on purpose. It was declared
+             and never used: the policy corpus is read by ManualCobrancaReader, which
+             splits by section and tags each chunk by carteira, and neither of those
+             is something a generic markdown reader can do. An unused dependency in a
+             teaching repo is worse than a missing one, because it suggests the generic
+             reader was enough, which is the opposite of the point being made. -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Testcontainers 2.x module names. Spring Boot 4.1.2 manages
+             testcontainers-bom 2.0.5, and 2.x renamed every module from
+             `<module>` to `testcontainers-<module>`. The 1.x names resolve to
+             nothing in that BOM, so `postgresql` and `junit-jupiter` had no
+             managed version and Maven could not even build the project model.
+             The build failed before the first mojo, which is why the error
+             surfaced as maven-resources-plugin rather than as a dependency
+             problem. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+
+            <!-- The *IT classes match none of Surefire's default include patterns,
+                 so `mvn test` never ran them and `mvn verify` did not either: the
+                 README promised a suite that no command executed. Failsafe is
+                 declared here (version and executions come from the Boot parent) so
+                 `mvn verify` runs them, and only `mvn verify`. The split matters,
+                 because one half needs nothing and the other needs Docker, a model
+                 server and a few minutes. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
